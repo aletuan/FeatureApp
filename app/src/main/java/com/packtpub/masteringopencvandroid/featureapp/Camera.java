@@ -3,6 +3,7 @@ package com.packtpub.masteringopencvandroid.featureapp;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -12,6 +13,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,6 +27,7 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
 import java.io.IOException;
+import java.util.jar.Manifest;
 
 public class Camera extends Activity {
 
@@ -107,35 +110,48 @@ public class Camera extends Activity {
 
             Log.d(TAG, "filePath " + filePath);
 
-            // To speed up loading of image
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = 2;
+            // Adding checking for permission
+            int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE);
 
-            Bitmap temp = BitmapFactory.decodeFile(filePath, options);
+            if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
 
-            // Get orientation information
-            int orientation = 0;
+                Log.d(TAG, "Permission is not allowed");
 
-            try {
-                ExifInterface imgParams = new ExifInterface(filePath);
-                orientation = imgParams.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+            } else {
 
-            } catch (IOException e) {
-                e.printStackTrace();
+                // TODO: Request permission
+
+                // To speed up loading of image
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inSampleSize = 2;
+
+                Bitmap temp = BitmapFactory.decodeFile(filePath, options);
+
+
+                // Get orientation information
+                int orientation = 0;
+
+                try {
+                    ExifInterface imgParams = new ExifInterface(filePath);
+                    orientation = imgParams.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                //Rotating the image to get the correct orientation
+                Matrix rotate90 = new Matrix();
+                rotate90.postRotate(orientation);
+                originalBitmap = rotateBitmap(temp, orientation);
+
+                //Convert Bitmap to Mat
+                Bitmap tempBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
+                originalMat = new Mat(tempBitmap.getHeight(), tempBitmap.getWidth(), CvType.CV_8U);
+                Utils.bitmapToMat(tempBitmap, originalMat);
+
+                currentBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, false);
+                loadImageToImageView();
             }
-
-            //Rotating the image to get the correct orientation
-            Matrix rotate90 = new Matrix();
-            rotate90.postRotate(orientation);
-            originalBitmap = rotateBitmap(temp, orientation);
-
-            //Convert Bitmap to Mat
-            Bitmap tempBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
-            originalMat = new Mat(tempBitmap.getHeight(), tempBitmap.getWidth(), CvType.CV_8U);
-            Utils.bitmapToMat(tempBitmap, originalMat);
-
-            currentBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, false);
-            loadImageToImageView();
         }
     }
 
