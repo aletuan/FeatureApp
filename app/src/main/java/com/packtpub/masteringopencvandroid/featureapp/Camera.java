@@ -37,10 +37,10 @@ public class Camera extends Activity {
     private final int SELECT_PHOTO = 0;
     private final int READ_PERMISSION = 1;
 
-    private Mat originalMat;
-    private Bitmap currentBitmap;   // bitmap to be applied with different algorithm
-    private Bitmap originalBitmap;  // store original bitmap for compare
-    private Uri selectedImage;      // uri of selected image
+    private Mat     mOriginalMat;
+    private Bitmap  mCurrentBitmap;     // bitmap to be applied with different algorithm
+    private Bitmap  mOriginalBitmap;    // store original bitmap for compare
+    private Uri     mSelectedImage;     // uri of selected image
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -100,7 +100,7 @@ public class Camera extends Activity {
         if (requestCode == SELECT_PHOTO && resultCode == RESULT_OK && intent != null) {
 
             // Get URI selected image
-            selectedImage = intent.getData();
+            mSelectedImage = intent.getData();
 
             // Adding checking for permission
             int permissionCheck = ContextCompat.checkSelfPermission(this,
@@ -116,6 +116,14 @@ public class Camera extends Activity {
             } else {
 
                 // TODO: Handle for the case permission is granted
+                // This is for the case, user select another image
+
+                //mCurrentBitmap = mOriginalBitmap.copy(Bitmap.Config.ARGB_8888, false);
+                mCurrentBitmap = rotateImage(mSelectedImage);
+
+                // Update view
+                loadImageToImageView();
+
             }
         }
     }
@@ -129,46 +137,54 @@ public class Camera extends Activity {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Log.d(TAG, "Permission is granted");
 
-                    String filePath = getFilePath(selectedImage);
+                    //mCurrentBitmap = mOriginalBitmap.copy(Bitmap.Config.ARGB_8888, false);
+                    mCurrentBitmap = rotateImage(mSelectedImage);
 
-                    // To speed up loading of image
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inSampleSize = 2;
-
-                    Bitmap temp = BitmapFactory.decodeFile(filePath, options);
-
-
-                    // Get orientation information
-                    int orientation = 0;
-
-                    try {
-                        ExifInterface imgParams = new ExifInterface(filePath);
-                        orientation = imgParams.getAttributeInt(ExifInterface.TAG_ORIENTATION,
-                                ExifInterface.ORIENTATION_UNDEFINED);
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-
-                    //Rotating the image to get the correct orientation
-                    Matrix rotate90 = new Matrix();
-                    rotate90.postRotate(orientation);
-                    originalBitmap = rotateBitmap(temp, orientation);
-
-                    //Convert Bitmap to Mat
-                    Bitmap tempBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
-                    originalMat = new Mat(tempBitmap.getHeight(), tempBitmap.getWidth(), CvType.CV_8U);
-                    Utils.bitmapToMat(tempBitmap, originalMat);
-
-                    currentBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, false);
+                    // Update view
                     loadImageToImageView();
-
 
                 } else {
                     Log.d(TAG, "Permission is Not granted");
                 }
             }
         }
+    }
+
+    private Bitmap rotateImage(Uri selectedImage) {
+        String filePath = getFilePath(selectedImage);
+
+        // To speed up loading of image
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = 2;
+
+        Bitmap temp = BitmapFactory.decodeFile(filePath, options);
+
+
+        // Get orientation information
+        int orientation = 0;
+
+        try {
+            ExifInterface imgParams = new ExifInterface(filePath);
+            orientation = imgParams.getAttributeInt(ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_UNDEFINED);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        //Rotating the image to get the correct orientation
+        Matrix rotate90 = new Matrix();
+        rotate90.postRotate(orientation);
+
+        // TODO: This function has side effect. Please fix it.
+        mOriginalBitmap = rotateBitmap(temp, orientation);
+
+        //Convert Bitmap to Mat
+        Bitmap tempBitmap = mOriginalBitmap.copy(Bitmap.Config.ARGB_8888, true);
+        mOriginalMat = new Mat(tempBitmap.getHeight(), tempBitmap.getWidth(), CvType.CV_8U);
+        Utils.bitmapToMat(tempBitmap, mOriginalMat);
+
+        return mOriginalBitmap.copy(Bitmap.Config.ARGB_8888, false);
     }
 
     public String getFilePath(Uri img) {
@@ -186,7 +202,7 @@ public class Camera extends Activity {
 
     private void loadImageToImageView() {
         ImageView imgView = (ImageView) findViewById(R.id.image_view);
-        imgView.setImageBitmap(currentBitmap);
+        imgView.setImageBitmap(mCurrentBitmap);
     }
 
     //Function to rotate bitmap according to image parameters
