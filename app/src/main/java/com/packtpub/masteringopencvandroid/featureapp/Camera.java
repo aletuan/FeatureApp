@@ -27,7 +27,6 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
 import java.io.IOException;
-import java.util.jar.Manifest;
 
 public class Camera extends Activity {
 
@@ -96,19 +95,7 @@ public class Camera extends Activity {
 
         if (requestCode == SELECT_PHOTO && resultCode == RESULT_OK && intent != null) {
             Uri selectedImage = intent.getData();
-            String[] filePathColumn = { MediaStore.Images.Media.DATA };
-
-            Log.d(TAG, "Length of file path " + filePathColumn.length);
-
-            Cursor cursor = getContentResolver().query(selectedImage, filePathColumn,
-                    null, null, null);
-            cursor.moveToFirst();
-
-            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-            String filePath = cursor.getString(columnIndex);
-            cursor.close();
-
-            Log.d(TAG, "filePath " + filePath);
+            String filePath = getFilePath(selectedImage);
 
             // Adding checking for permission
             int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE);
@@ -153,6 +140,19 @@ public class Camera extends Activity {
                 loadImageToImageView();
             }
         }
+    }
+
+    public String getFilePath(Uri img) {
+        String[] filePathColumn = { MediaStore.Images.Media.DATA };
+        Cursor cursor = getContentResolver().query(img, filePathColumn,
+                null, null, null);
+        cursor.moveToFirst();
+
+        int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+        String filePath = cursor.getString(columnIndex);
+        cursor.close();
+
+        return filePath;
     }
 
     private void loadImageToImageView() {
