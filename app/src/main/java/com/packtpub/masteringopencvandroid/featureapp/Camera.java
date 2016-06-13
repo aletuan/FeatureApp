@@ -1,5 +1,6 @@
 package com.packtpub.masteringopencvandroid.featureapp;
 
+import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
@@ -13,6 +14,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.Menu;
@@ -33,10 +35,12 @@ public class Camera extends Activity {
     public final static String TAG = "FeatureApp::Camera";
 
     private final int SELECT_PHOTO = 0;
+    private final int READ_PERMISSION = 1;
 
     private Mat originalMat;
     private Bitmap currentBitmap;   // bitmap to be applied with different algorithm
     private Bitmap originalBitmap;  // store original bitmap for compare
+    private Uri selectedImage;      // uri of selected image
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -94,50 +98,75 @@ public class Camera extends Activity {
         super.onActivityResult(requestCode, resultCode, intent);
 
         if (requestCode == SELECT_PHOTO && resultCode == RESULT_OK && intent != null) {
-            Uri selectedImage = intent.getData();
-            String filePath = getFilePath(selectedImage);
+
+            // Get URI selected image
+            selectedImage = intent.getData();
 
             // Adding checking for permission
-            int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE);
+            int permissionCheck = ContextCompat.checkSelfPermission(this,
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE);
 
             if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
 
-                Log.d(TAG, "Permission is not allowed");
+                Log.d(TAG, "Permission is not allowed. Request permission");
+
+                ActivityCompat.requestPermissions(this, new String[]
+                        {Manifest.permission.READ_EXTERNAL_STORAGE}, READ_PERMISSION);
 
             } else {
 
-                // TODO: Request permission
-
-                // To speed up loading of image
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inSampleSize = 2;
-
-                Bitmap temp = BitmapFactory.decodeFile(filePath, options);
+                // TODO: Handle for the case permission is granted
+            }
+        }
+    }
 
 
-                // Get orientation information
-                int orientation = 0;
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case READ_PERMISSION: {
+                // If request is cancelled, the result arrays are empty
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "Permission is granted");
 
-                try {
-                    ExifInterface imgParams = new ExifInterface(filePath);
-                    orientation = imgParams.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+                    String filePath = getFilePath(selectedImage);
 
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    // To speed up loading of image
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize = 2;
+
+                    Bitmap temp = BitmapFactory.decodeFile(filePath, options);
+
+
+                    // Get orientation information
+                    int orientation = 0;
+
+                    try {
+                        ExifInterface imgParams = new ExifInterface(filePath);
+                        orientation = imgParams.getAttributeInt(ExifInterface.TAG_ORIENTATION,
+                                ExifInterface.ORIENTATION_UNDEFINED);
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    //Rotating the image to get the correct orientation
+                    Matrix rotate90 = new Matrix();
+                    rotate90.postRotate(orientation);
+                    originalBitmap = rotateBitmap(temp, orientation);
+
+                    //Convert Bitmap to Mat
+                    Bitmap tempBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
+                    originalMat = new Mat(tempBitmap.getHeight(), tempBitmap.getWidth(), CvType.CV_8U);
+                    Utils.bitmapToMat(tempBitmap, originalMat);
+
+                    currentBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, false);
+                    loadImageToImageView();
+
+
+                } else {
+                    Log.d(TAG, "Permission is Not granted");
                 }
-
-                //Rotating the image to get the correct orientation
-                Matrix rotate90 = new Matrix();
-                rotate90.postRotate(orientation);
-                originalBitmap = rotateBitmap(temp, orientation);
-
-                //Convert Bitmap to Mat
-                Bitmap tempBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
-                originalMat = new Mat(tempBitmap.getHeight(), tempBitmap.getWidth(), CvType.CV_8U);
-                Utils.bitmapToMat(tempBitmap, originalMat);
-
-                currentBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, false);
-                loadImageToImageView();
             }
         }
     }
@@ -195,7 +224,8 @@ public class Camera extends Activity {
                 return bitmap;
         }
         try {
-            Bitmap bmRotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+            Bitmap bmRotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(),
+                    bitmap.getHeight(), matrix, true);
             bitmap.recycle();
             return bmRotated;
         } catch (OutOfMemoryError e) {
