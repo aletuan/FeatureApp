@@ -102,6 +102,8 @@ public class Camera extends Activity {
             Sobel();
         } else if (id == R.id.HarrisCorners) {
             HarrisCorner();
+        } else if (id == R.id.HoughLines) {
+            HoughLines();
         }
 
         return super.onOptionsItemSelected(item);
@@ -400,6 +402,44 @@ public class Camera extends Activity {
 
         //Converting Mat back to Bitmap
         Utils.matToBitmap(corners, mCurrentBitmap);
+        loadImageToImageView();
+    }
+
+    public void HoughLines() {
+
+        Mat grayMat = new Mat();
+        Mat cannyEdges = new Mat();
+        Mat lines = new Mat();
+
+        //Converting the image to grayscale
+        Imgproc.cvtColor(mOriginalMat, grayMat, Imgproc.COLOR_BGR2GRAY);
+
+        Imgproc.Canny(grayMat, cannyEdges, 10, 100);
+
+        Imgproc.HoughLinesP(cannyEdges, lines, 1, Math.PI / 180, 50, 20, 20);
+
+        Mat houghLines = new Mat();
+        houghLines.create(cannyEdges.rows(), cannyEdges.cols(), CvType.CV_8UC1);
+
+        //Drawing lines on the image
+        for (int i = 0; i < lines.cols(); i++) {
+            double[] points = lines.get(0, i);
+            double x1, y1, x2, y2;
+
+            x1 = points[0];
+            y1 = points[1];
+            x2 = points[2];
+            y2 = points[3];
+
+            Point pt1 = new Point(x1, y1);
+            Point pt2 = new Point(x2, y2);
+
+            //Drawing lines on an image
+            Core.line(houghLines, pt1, pt2, new Scalar(255, 0, 0), 1);
+        }
+
+        //Converting Mat back to Bitmap
+        Utils.matToBitmap(houghLines, mCurrentBitmap);
         loadImageToImageView();
     }
 
