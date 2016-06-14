@@ -25,10 +25,16 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.IOException;
+import java.util.Random;
 
 public class Camera extends Activity {
 
@@ -66,7 +72,7 @@ public class Camera extends Activity {
         setContentView(R.layout.activity_camera);
 
         // Initializing OpenCV Package Manager
-        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0, this, mLoaderCallback);
+        OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_10, this, mLoaderCallback);
     }
 
     @Override
@@ -87,6 +93,15 @@ public class Camera extends Activity {
         } else if (id == R.id.open_gallery) {
             Intent intent = new Intent(Intent.ACTION_PICK, Uri.parse("content://media/internal/images/media"));
             startActivityForResult(intent, SELECT_PHOTO);
+        } else if (id == R.id.DoG) {
+            DifferenceOfGaussian();
+
+        } else if (id == R.id.CannyEdges) {
+            Canny();
+        } else if (id == R.id.SobelFilter) {
+            Sobel();
+        } else if (id == R.id.HarrisCorners) {
+            HarrisCorner();
         }
 
         return super.onOptionsItemSelected(item);
@@ -250,5 +265,143 @@ public class Camera extends Activity {
         }
 
     }
+
+    /**
+     * DoG Algorithm
+     */
+    /*
+    public void DifferenceOfGaussian() {
+        Mat DoG = new Mat();
+        Mat blur1 = new Mat();
+        Mat blur2 = new Mat();
+        Mat grayMat = new Mat();
+
+        // Converting the image to grayscale
+        Imgproc.cvtColor(mOriginalMat, grayMat, Imgproc.COLOR_BGR2GRAY);
+
+        // Blur the image using two different blurring radius
+        Imgproc.GaussianBlur(grayMat, blur1, new Size(15, 15), 5);
+        Imgproc.GaussianBlur(grayMat, blur1, new Size(21, 21), 5);
+
+        // Subtract the two blurred images
+        Core.absdiff(blur1, blur2, DoG);
+
+        // Inverse Binary Thresholding
+        Core.multiply(DoG, new Scalar(100), DoG);
+        Imgproc.threshold(DoG, DoG, 50, 255, Imgproc.THRESH_BINARY_INV);
+
+        // Converting Mat back to Bitmap
+        Utils.matToBitmap(DoG, mCurrentBitmap);
+        loadImageToImageView();
+    }
+    */
+
+    //Difference of Gaussian
+    public void DifferenceOfGaussian() {
+        Mat grayMat = new Mat();
+        Mat blur1 = new Mat();
+        Mat blur2 = new Mat();
+
+        //Converting the image to grayscale
+        Imgproc.cvtColor(mOriginalMat, grayMat, Imgproc.COLOR_BGR2GRAY);
+
+        Imgproc.GaussianBlur(grayMat, blur1, new Size(15, 15), 5);
+        Imgproc.GaussianBlur(grayMat, blur2, new Size(21, 21), 5);
+
+        //Subtracting the two blurred images
+        Mat DoG = new Mat();
+        Core.absdiff(blur1, blur2, DoG);
+
+        //Inverse Binary Thresholding
+        Core.multiply(DoG, new Scalar(100), DoG);
+        Imgproc.threshold(DoG, DoG, 50, 255, Imgproc.THRESH_BINARY_INV);
+
+        //Converting Mat back to Bitmap
+        //Utils.matToBitmap(DoG, mCurrentBitmap);
+        Utils.matToBitmap(DoG, mCurrentBitmap);
+        loadImageToImageView();
+    }
+
+    //Canny Edge Detection
+    public void Canny() {
+
+        Mat grayMat = new Mat();
+        Mat cannyEdges = new Mat();
+
+        //Converting the image to grayscale
+        Imgproc.cvtColor(mOriginalMat, grayMat, Imgproc.COLOR_BGR2GRAY);
+
+        Imgproc.Canny(grayMat, cannyEdges, 50, 100);
+
+        //Converting Mat back to Bitmap
+        Utils.matToBitmap(cannyEdges, mCurrentBitmap);
+        loadImageToImageView();
+    }
+
+    //Sobel operator
+    public void Sobel() {
+        Mat grayMat = new Mat();
+        Mat sobel = new Mat();      // Mat to store the result
+
+        // Mat to store gradient and absolute gradient respectively
+        Mat grad_x = new Mat();
+        Mat abs_grad_x = new Mat();
+
+        Mat grad_y = new Mat();
+        Mat abs_grad_y = new Mat();
+
+        //Converting the image to grayscale
+        Imgproc.cvtColor(mOriginalMat, grayMat, Imgproc.COLOR_BGR2GRAY);
+
+        //Calculating gradient in horizontal direction
+        Imgproc.Sobel(grayMat, grad_x, CvType.CV_16S, 1, 0, 3, 1, 0);
+
+        //Calculating gradient in vertical direction
+        Imgproc.Sobel(grayMat, grad_y, CvType.CV_16S, 0, 1, 3, 1, 0);
+
+        //Calculating absolute value of gradients in both the direction
+        Core.convertScaleAbs(grad_x, abs_grad_x);
+        Core.convertScaleAbs(grad_y, abs_grad_y);
+
+        //Calculating the resultant gradient
+        Core.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 1, sobel);
+
+        //Converting Mat back to Bitmap
+        Utils.matToBitmap(sobel, mCurrentBitmap);
+        loadImageToImageView();
+
+    }
+
+    public void HarrisCorner() {
+        Mat grayMat = new Mat();
+        Mat corners = new Mat();
+
+        //Converting the image to grayscale
+        Imgproc.cvtColor(mOriginalMat, grayMat, Imgproc.COLOR_BGR2GRAY);
+
+        Mat tempDst = new Mat();
+        //finding contours
+        Imgproc.cornerHarris(grayMat, tempDst, 2, 3, 0.04);
+
+        //Normalizing harris corner's output
+        Mat tempDstNorm = new Mat();
+        Core.normalize(tempDst, tempDstNorm, 0, 255, Core.NORM_MINMAX);
+        Core.convertScaleAbs(tempDstNorm, corners);
+
+        //Drawing corners on a new image
+        Random r = new Random();
+        for (int i = 0; i < tempDstNorm.cols(); i++) {
+            for (int j = 0; j < tempDstNorm.rows(); j++) {
+                double[] value = tempDstNorm.get(j, i);
+                if (value[0] > 150)
+                    Core.circle(corners, new Point(i, j), 5, new Scalar(r.nextInt(255)), 2);
+            }
+        }
+
+        //Converting Mat back to Bitmap
+        Utils.matToBitmap(corners, mCurrentBitmap);
+        loadImageToImageView();
+    }
+
 
 }

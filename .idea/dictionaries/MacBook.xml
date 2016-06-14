@@ -4,8 +4,12 @@
       <w>contous</w>
       <w>featureapp</w>
       <w>gaussians</w>
+      <w>grap</w>
+      <w>grayscale</w>
       <w>hough</w>
       <w>sobel</w>
+      <w>substract</w>
+      <w>thresholding</w>
     </words>
   </dictionary>
 </component>
